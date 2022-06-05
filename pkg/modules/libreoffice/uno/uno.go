@@ -283,7 +283,7 @@ func (mod UNO) PendingConversionsCount() int {
 	return mod.listener.queue()
 }
 
-// CheckConversionAvailability checks the current loading of uno limited by uno-max-pending-conversions property
+// CheckConversionAvailability checks the current loading of uno with the uno-max-pending-conversions setting
 func (mod UNO) CheckConversionAvailability() error {
 	if mod.maxPendingConversions > 0 && mod.maxPendingConversions <= mod.PendingConversionsCount() {
 		return ErrMaxPendingConversions
