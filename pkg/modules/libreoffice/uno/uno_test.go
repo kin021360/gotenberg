@@ -759,6 +759,196 @@ func TestUNO_Extensions(t *testing.T) {
 	}
 }
 
+func TestUNO_PendingConversionsCount(t *testing.T) {
+	tests := []struct {
+		name                          string
+		mod                           UNO
+		mockActiveInstancesCount      func()
+		expectPendingConversionsCount int
+	}{
+		{
+			name: "stateful mode with LibreOffice listener queue length 3",
+			mod: UNO{
+				libreOfficeRestartThreshold: 10,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 3
+					},
+					healthyMock: func() bool {
+						return true
+					},
+				},
+			},
+			expectPendingConversionsCount: 3,
+		},
+		{
+			name: "stateless mode with active LibreOffice instances count 5",
+			mod: UNO{
+				libreOfficeRestartThreshold: 0,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 0
+					},
+					healthyMock: func() bool {
+						return false
+					},
+				},
+			},
+			mockActiveInstancesCount: func() {
+				activeInstancesCount = 5
+			},
+			expectPendingConversionsCount: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.mockActiveInstancesCount != nil {
+				// reset activeInstancesCount after the test
+				defer func() {
+					activeInstancesCount = 0
+				}()
+
+				tc.mockActiveInstancesCount()
+			}
+
+			actual := tc.mod.PendingConversionsCount()
+
+			if actual != tc.expectPendingConversionsCount {
+				t.Errorf("expected 'mod.PendingConversionsCount()' to return %v, but got %v", tc.expectPendingConversionsCount, actual)
+			}
+		})
+	}
+}
+
+func TestUNO_CheckConversionAvailability(t *testing.T) {
+	tests := []struct {
+		name                     string
+		mod                      UNO
+		mockActiveInstancesCount func()
+		expectErr                error
+	}{
+		{
+			name: "stateful mode with LibreOffice listener queue length 3, maxPendingConversions 0",
+			mod: UNO{
+				libreOfficeRestartThreshold: 10,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 3
+					},
+					healthyMock: func() bool {
+						return true
+					},
+				},
+			},
+		},
+		{
+			name: "stateful mode with LibreOffice listener queue length 2, maxPendingConversions 3",
+			mod: UNO{
+				libreOfficeRestartThreshold: 10,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 2
+					},
+					healthyMock: func() bool {
+						return true
+					},
+				},
+				maxPendingConversions: 3,
+			},
+		},
+		{
+			name: "stateful mode with LibreOffice listener queue length 3, maxPendingConversions 3",
+			mod: UNO{
+				libreOfficeRestartThreshold: 10,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 3
+					},
+					healthyMock: func() bool {
+						return true
+					},
+				},
+				maxPendingConversions: 3,
+			},
+			expectErr: ErrMaxPendingConversions,
+		},
+		{
+			name: "stateless mode with active LibreOffice instances count 5, maxPendingConversions 0",
+			mod: UNO{
+				libreOfficeRestartThreshold: 0,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 0
+					},
+					healthyMock: func() bool {
+						return false
+					},
+				},
+			},
+			mockActiveInstancesCount: func() {
+				activeInstancesCount = 5
+			},
+		},
+		{
+			name: "stateless mode with active LibreOffice instances count 4, maxPendingConversions 5",
+			mod: UNO{
+				libreOfficeRestartThreshold: 0,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 0
+					},
+					healthyMock: func() bool {
+						return false
+					},
+				},
+				maxPendingConversions: 5,
+			},
+			mockActiveInstancesCount: func() {
+				activeInstancesCount = 4
+			},
+		},
+		{
+			name: "stateless mode with active LibreOffice instances count 5, maxPendingConversions 5",
+			mod: UNO{
+				libreOfficeRestartThreshold: 0,
+				listener: listenerMock{
+					queueMock: func() int {
+						return 0
+					},
+					healthyMock: func() bool {
+						return false
+					},
+				},
+				maxPendingConversions: 5,
+			},
+			mockActiveInstancesCount: func() {
+				activeInstancesCount = 5
+			},
+			expectErr: ErrMaxPendingConversions,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.mockActiveInstancesCount != nil {
+				// reset activeInstancesCount after the test
+				defer func() {
+					activeInstancesCount = 0
+				}()
+
+				tc.mockActiveInstancesCount()
+			}
+
+			actual := tc.mod.CheckConversionAvailability()
+
+			if actual != tc.expectErr {
+				t.Errorf("expected 'mod.CheckConversionAvailability()' to return %v error, but got %v", tc.expectErr, actual)
+			}
+		})
+	}
+}
+
 func TestUNO_UNO(t *testing.T) {
 	mod := new(UNO)
 

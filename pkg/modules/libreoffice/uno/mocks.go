@@ -8,8 +8,9 @@ import (
 
 // APIMock is a mock for the API interface.
 type APIMock struct {
-	PDFMock        func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
-	ExtensionsMock func() []string
+	PDFMock                         func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
+	ExtensionsMock                  func() []string
+	CheckConversionAvailabilityMock func() error
 }
 
 func (api APIMock) PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error {
@@ -18,6 +19,10 @@ func (api APIMock) PDF(ctx context.Context, logger *zap.Logger, inputPath, outpu
 
 func (api APIMock) Extensions() []string {
 	return api.ExtensionsMock()
+}
+
+func (api APIMock) CheckConversionAvailability() error {
+	return api.CheckConversionAvailabilityMock()
 }
 
 // ProviderMock is a mock for the Provider interface.

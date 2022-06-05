@@ -28,6 +28,8 @@ var (
 	// ErrMalformedPageRanges happens if the page ranges option cannot be
 	// interpreted by LibreOffice.
 	ErrMalformedPageRanges = errors.New("page ranges are malformed")
+
+	ErrMaxPendingConversions = errors.New("unavailable to accept a new conversion")
 )
 
 // UNO is a module which provides an API to interact with LibreOffice.
@@ -36,6 +38,7 @@ type UNO struct {
 	libreOfficeBinPath          string
 	libreOfficeStartTimeout     time.Duration
 	libreOfficeRestartThreshold int
+	maxPendingConversions       int
 
 	listener listener
 	logger   *zap.Logger
@@ -62,6 +65,7 @@ type Options struct {
 type API interface {
 	PDF(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options Options) error
 	Extensions() []string
+	CheckConversionAvailability() error
 }
 
 // Provider is a module interface which exposes a method for creating an API
@@ -84,6 +88,7 @@ func (UNO) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Duration("uno-listener-start-timeout", time.Duration(10)*time.Second, "Time limit for restarting the LibreOffice listener")
 			fs.Int("uno-listener-restart-threshold", 10, "Conversions limit after which the LibreOffice listener is restarted - 0 means no long-running LibreOffice listener")
 			fs.Bool("unoconv-disable-listener", false, "Do not start a long-running listener - save resources in detriment of unitary performance")
+			fs.Int("uno-max-pending-conversions", 0, "Reject new conversion request if pending conversions are max - 0 means unlimited")
 
 			err := fs.MarkDeprecated("unoconv-disable-listener", "use uno-listener-restart-threshold with 0 instead")
 			if err != nil {
@@ -102,6 +107,7 @@ func (mod *UNO) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.libreOfficeStartTimeout = flags.MustDuration("uno-listener-start-timeout")
 	mod.libreOfficeRestartThreshold = flags.MustInt("uno-listener-restart-threshold")
+	mod.maxPendingConversions = flags.MustInt("uno-max-pending-conversions")
 
 	disableListener := flags.MustBool("unoconv-disable-listener")
 	if disableListener {
@@ -261,6 +267,28 @@ func (mod UNO) Metrics() ([]gotenberg.Metric, error) {
 			},
 		},
 	}, nil
+}
+
+// PendingConversionsCount returns the number of current pending conversions
+func (mod UNO) PendingConversionsCount() int {
+	if mod.libreOfficeRestartThreshold == 0 {
+		// Stateless mode, returns activeInstancesCount
+		activeInstancesCountMu.RLock()
+		defer activeInstancesCountMu.RUnlock()
+
+		return int(activeInstancesCount)
+	}
+
+	// Stateful mode, returns listener queue length
+	return mod.listener.queue()
+}
+
+// CheckConversionAvailability checks the current loading of uno limited by uno-max-pending-conversions property
+func (mod UNO) CheckConversionAvailability() error {
+	if mod.maxPendingConversions > 0 && mod.maxPendingConversions <= mod.PendingConversionsCount() {
+		return ErrMaxPendingConversions
+	}
+	return nil
 }
 
 // Checks adds a health check that verifies the health of the long-running

@@ -43,6 +43,9 @@ func TestConvertHandler(t *testing.T) {
 						".docx",
 					}
 				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
+				},
 			},
 			expectOutputPathsCount: 1,
 		},
@@ -67,6 +70,9 @@ func TestConvertHandler(t *testing.T) {
 						".docx",
 					}
 				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
+				},
 			},
 			expectOutputPathsCount: 3,
 		},
@@ -89,6 +95,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			expectErr: true,
@@ -215,6 +224,9 @@ func TestConvertHandler(t *testing.T) {
 						".docx",
 					}
 				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
+				},
 			},
 			expectErr: true,
 		},
@@ -236,6 +248,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			expectErr:        true,
@@ -267,6 +282,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			engine: gotenberg.PDFEngineMock{
@@ -301,6 +319,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			engine: gotenberg.PDFEngineMock{
@@ -338,6 +359,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			engine: gotenberg.PDFEngineMock{
@@ -379,6 +403,9 @@ func TestConvertHandler(t *testing.T) {
 						".docx",
 					}
 				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
+				},
 			},
 			engine: gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -418,6 +445,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			engine: gotenberg.PDFEngineMock{
@@ -459,6 +489,9 @@ func TestConvertHandler(t *testing.T) {
 						".docx",
 					}
 				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
+				},
 			},
 			engine: gotenberg.PDFEngineMock{
 				MergeMock: func(ctx context.Context, logger *zap.Logger, inputPaths []string, outputPath string) error {
@@ -490,6 +523,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			engine: gotenberg.PDFEngineMock{
@@ -524,6 +560,9 @@ func TestConvertHandler(t *testing.T) {
 						".docx",
 					}
 				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
+				},
 			},
 			engine: gotenberg.PDFEngineMock{
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
@@ -555,6 +594,9 @@ func TestConvertHandler(t *testing.T) {
 					return []string{
 						".docx",
 					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
 				},
 			},
 			engine: gotenberg.PDFEngineMock{
@@ -588,6 +630,9 @@ func TestConvertHandler(t *testing.T) {
 						".docx",
 					}
 				},
+				CheckConversionAvailabilityMock: func() error {
+					return nil
+				},
 			},
 			engine: gotenberg.PDFEngineMock{
 				ConvertMock: func(ctx context.Context, logger *zap.Logger, format, inputPath, outputPath string) error {
@@ -597,6 +642,33 @@ func TestConvertHandler(t *testing.T) {
 			expectErr:        true,
 			expectHTTPErr:    true,
 			expectHTTPStatus: http.StatusBadRequest,
+		},
+		{
+			name: "CheckConversionAvailability returns error",
+			ctx: func() *api.ContextMock {
+				ctx := &api.ContextMock{Context: &api.Context{}}
+				ctx.SetFiles(map[string]string{
+					"foo.docx": "/foo/foo.docx",
+				})
+
+				return ctx
+			}(),
+			unoAPI: uno.APIMock{
+				PDFMock: func(ctx context.Context, logger *zap.Logger, inputPath, outputPath string, options uno.Options) error {
+					return nil
+				},
+				ExtensionsMock: func() []string {
+					return []string{
+						".docx",
+					}
+				},
+				CheckConversionAvailabilityMock: func() error {
+					return uno.ErrMaxPendingConversions
+				},
+			},
+			expectErr:        true,
+			expectHTTPErr:    true,
+			expectHTTPStatus: http.StatusServiceUnavailable,
 		},
 	}
 

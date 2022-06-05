@@ -75,6 +75,12 @@ func convertRoute(unoAPI uno.API, engine gotenberg.PDFEngine) api.Route {
 				nativePDFformat = gotenberg.FormatPDFA1a
 			}
 
+			// Check uno's loading first
+			err = unoAPI.CheckConversionAvailability()
+			if err!= nil {
+				return api.NewSentinelHTTPError(http.StatusServiceUnavailable, "Unavailable to accept a new conversion. Please try again later.")
+			}
+
 			// Alright, let's convert each document to PDF.
 
 			outputPaths := make([]string, len(inputPaths))
